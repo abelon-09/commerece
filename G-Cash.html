@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash-Go | Elite Digital Wallet</title>
+    <link rel="icon" type="image/png" href="/logo-removebg-preview (2).png">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+    :root {
+        --brand-blue: #007AFF;
+        --brand-glow: rgba(0, 122, 255, 0.5);
+        --danger: #FF3B30;
+        --success: #34C759;
+        --bg-dark: #010101;
+        --card-bg:  rgba(255, 255, 255, 0.08);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-main: #FFFFFF;
+        --text-muted: #A1A1A6;
+    }
+
+    * { 
+        box-sizing: border-box; 
+        -webkit-tap-highlight-color: transparent; 
+        font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif; 
+    }
+    
+    body { 
+        background: radial-gradient(circle at 50% 0%, #1c1c1e, #000000);
+        margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; 
+        color: var(--text-main);
+    }
+
+    /* Device Frame */
+    .app-shell {
+        width: 100%; max-width: 390px; height: 844px;
+        background-color: #000; border-radius: 50px; border: 12px solid #1c1c1e;
+        position: relative; overflow: hidden; display: flex; flex-direction: column;
+        box-shadow: 0 50px 100px rgba(0,0,0,0.9);
+    }
+
+    /* Toast Notification */
+    #notification-toast {
+        position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+        width: 90%; padding: 16px; border-radius: 24px; color: white;
+        font-weight: 600; text-align: center; z-index: 9999;
+        backdrop-filter: blur(20px); transition: 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        border: 1px solid var(--glass-border);
+    }
+
+    /* Screens */
+    .screen { display: none; flex: 1; flex-direction: column; height: 100%; animation: screenIn 0.5s ease; }
+    .screen.active { display: flex; }
+    @keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Auth Styling */
+    .auth-content { padding: 80px 35px; text-align: center; }
+    .logo { 
+        font-size: 56px; font-weight: 900; 
+        background: linear-gradient(to bottom, #fff, #888);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        margin-bottom: 10px; letter-spacing: -3px; 
+    }
+    
+    input, select {
+        width: 100%; padding: 20px; margin-top: 15px; border: 1px solid var(--glass-border);
+        border-radius: 20px; font-size: 17px; background: var(--card-bg); 
+        color: white; transition: 0.3s;
+    }
+    input:focus { outline: none; border-color: var(--brand-blue); background: rgba(255,255,255,0.12); }
+
+    .btn-primary {
+        width: 100%; padding: 20px; background: var(--brand-blue);
+        color: white; border: none; border-radius: 22px; font-weight: 700; font-size: 17px;
+        cursor: pointer; margin-top: 25px; 
+        box-shadow: 0 10px 30px var(--brand-glow); transition: 0.3s;
+    }
+    .btn-primary:active { transform: scale(0.96); opacity: 0.9; }
+
+    /* Dashboard UI */
+    .header-card {
+        padding: 70px 30px 40px; text-align: left;
+        background: linear-gradient(180deg, rgba(0,122,255,0.15) 0%, transparent 100%);
+    }
+    .balance-value { font-size: 48px; font-weight: 800; margin: 10px 0; letter-spacing: -2px; }
+
+    .services-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+        padding: 20px;
+    }
+    .service-item {
+        background: var(--card-bg); padding: 18px 0; border-radius: 24px;
+        text-align: center; cursor: pointer; border: 1px solid var(--glass-border);
+        transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .service-item:active { transform: scale(0.85); background: var(--brand-blue); }
+    .service-item div { font-size: 24px; }
+    .service-item span { display: block; font-size: 11px; font-weight: 600; margin-top: 8px; color: var(--text-muted); }
+
+    /* Transaction History */
+    .history-item {
+        background: var(--card-bg); padding: 18px; border-radius: 24px; margin: 0 20px 12px;
+        display: flex; justify-content: space-between; align-items: center;
+        border: 1px solid var(--glass-border);
+    }
+    .history-item small { color: var(--text-muted); font-size: 12px; }
+
+    /* Navigation Bar */
+    .nav-bar {
+        position: absolute; bottom: 0; width: 100%; 
+        background: rgba(20, 20, 20, 0.8);
+        backdrop-filter: blur(30px); display: flex; justify-content: space-around;
+        padding: 15px 0 35px; border-top: 1px solid var(--glass-border);
+    }
+    .nav-link { font-size: 11px; font-weight: 600; color: var(--text-muted); cursor: pointer; text-align: center; }
+    .nav-link.active { color: var(--brand-blue); }
+
+    /* Modals (Glassmorphism) */
+    .modal-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+        display: none; align-items: flex-end; z-index: 1000;
+    }
+    .modal-sheet {
+        background: #1c1c1e; width: 100%; padding: 35px; 
+        border-radius: 40px 40px 0 0; border-top: 1px solid var(--glass-border);
+        box-shadow: 0 -20px 40px rgba(0,0,0,0.5);
+    }
+    .modal-sheet h3 { margin-top: 0; font-size: 24px; font-weight: 800; }
+
+    /* Custom scrollbar for history */
+    #ui-history::-webkit-scrollbar { width: 0px; }
+    img{
+        width: 250  px;
+        height: 150px;
+
+    }
+</style>   
+</head>
+<body>
+
+<div id="notification-toast"></div>
+
+<div class="app-shell">
+    
+    <div id="screen-login" class="screen active">
+        <div class="auth-content">
+            <img src="/logo-removebg-preview (2).png">
+            <div class="logo">Cash-Go</div>
+            <input type="tel" id="login-phone" placeholder="Mobile Number" value="09123456789">
+            <input type="password" id="login-pin" placeholder="4-Digit MPIN" maxlength="4">
+            <button class="btn-primary" onclick="System.login()">Sign In</button>
+            <div style="margin-top: 20px;">
+                <span class="link-text" onclick="System.nav('screen-reg')">Create Account</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-reg" class="screen">
+        <div class="auth-content">
+            <div class="logo" style="font-size:32px">Register</div>
+            <input type="tel" id="reg-phone" placeholder="Mobile Number">
+            <input type="password" id="reg-pin" placeholder="Set 4-Digit MPIN" maxlength="4">
+            <button class="btn-primary" onclick="System.register()">Register</button>
+            <span class="link-text" onclick="System.nav('screen-login')">Back</span>
+        </div>
+    </div>
+
+    <div id="screen-dash" class="screen">
+        <div class="header-card">
+            <div style="font-size:11px; opacity:0.7; font-weight:700;">BALANCE</div>
+            <div class="balance-value" id="ui-balance">₱ </div>
+            <button onclick="System.cashIn()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:8px 20px; border-radius:30px;">+ Cash In</button>
+        </div>
+        <div class="services-grid">
+            <div class="service-item" onclick="System.openModal('mod-send')"><div>💸</div><span>Send</span></div>
+            <div class="service-item" onclick="System.startQR()"><div>📸</div><span>Scan</span></div>
+            <div class="service-item" onclick="System.openModal('mod-load')"><div>📱</div><span>Load</span></div>
+            <div class="service-item" onclick="System.openModal('mod-bills')"><div>🧾</div><span>Bills</span></div>
+        </div>
+        <div id="ui-history" style="overflow-y:auto; flex:1; margin-bottom:80px;"></div>
+    </div>
+
+    <div id="main-nav" class="nav-bar" style="display:none;">
+        <div class="nav-link active" onclick="System.tab('screen-dash', this)"><span>🏠</span><br>Home</div>
+        <div class="nav-link" onclick="System.logout()"><span>🚪</span><br>Exit</div>
+    </div>
+
+    <div id="mod-send" class="modal-overlay"><div class="modal-sheet">
+        <h3>Send Money</h3>
+        <input type="tel" id="form-send-phone" placeholder="Recipient Number">
+        <input type="number" id="form-send-amt" placeholder="Amount (₱)">
+        <button class="btn-primary" onclick="System.processSend()">Confirm Send</button>
+        <button class="btn-primary" style="background:none; box-shadow:none; color:var(--danger);" onclick="System.closeModal()">Cancel</button>
+    </div></div>
+
+    <div id="mod-load" class="modal-overlay"><div class="modal-sheet">
+        <h3>Buy Load</h3>
+        <select id="form-load-net">
+            <option value="Globe">Globe</option>
+            <option value="Smart">Smart</option>
+            <option value="DITO">DITO</option>
+            <option value="TM">TM</option>
+        </select>
+        <input type="tel" id="form-load-phone" placeholder="Recipient Number (e.g. 0917...)">
+        <input type="number" id="form-load-amt" placeholder="Amount (₱)">
+        <button class="btn-primary" onclick="System.processLoad()">Buy Load</button>
+        <button class="btn-primary" style="background:none; box-shadow:none; color:var(--danger);" onclick="System.closeModal()">Cancel</button>
+    </div></div>
+
+    <div id="mod-bills" class="modal-overlay"><div class="modal-sheet">
+        <h3>Pay Bills</h3>
+        <select id="form-bill-biller">
+            <option value="Meralco">Meralco</option>
+            <option value="Maynilad">Maynilad</option>
+            <option value="PLDT">PLDT</option>
+            <option value="Globe Postpaid">Globe Postpaid</option>
+            <option value ="Cebu Pacific">Cebu Pacific</option>
+        </select>
+        <input type="text" id="form-bill-account" placeholder="Account Number">
+        <input type="number" id="form-bill-amt" placeholder="Amount (₱)">
+        <button class="btn-primary" onclick="System.processBill()">Pay Now</button>
+        <button class="btn-primary" style="background:none; box-shadow:none; color:var(--danger);" onclick="System.closeModal()">Cancel</button>
+    </div></div>
+
+    <div id="mod-qr" class="modal-overlay" style="align-items: center; justify-content: center;">
+        <div class="modal-sheet" style="width: 90%; border-radius: 35px; text-align: center;">
+            <h3 style="margin: 0 0 20px;">Scan Merchant QR</h3>
+            <div id="qr-container" style="width: 100%; border-radius: 20px; overflow: hidden; background: #000;"></div>
+            <button class="btn-primary" style="background:var(--danger);" onclick="System.stopQR()">Close Camera</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const System = {
+    state: {
+        balance: 0.00,
+        history: [],
+        users: []
+    },
+    scanner: null,
+
+    toast(msg, type) {
+        const t = document.getElementById('notification-toast');
+        t.innerText = msg;
+        t.style.backgroundColor = type === 'error' ? 'var(--danger)' : 'var(--success)';
+        t.style.top = '25px';
+        setTimeout(() => t.style.top = '-100px', 3000);
+    },
+
+    // --- LOAD LOGIC (NEW) ---
+    processLoad() {
+        const net = document.getElementById('form-load-net').value;
+        const phone = document.getElementById('form-load-phone').value;
+        const amt = parseFloat(document.getElementById('form-load-amt').value);
+
+        if(!phone || phone.length < 10) return this.toast("Invalid Phone Number", "error");
+        if(!amt || amt <= 0) return this.toast("Invalid Amount", "error");
+        if(amt > this.state.balance) return this.toast("Insufficient Balance", "error");
+
+        this.state.balance -= amt;
+        this.addHistory(`${net} Load: ${phone}`, amt, true);
+        this.update();
+        this.closeModal();
+        this.toast("Load Purchase Successful", "success");
+        
+        // Reset Inputs
+        document.getElementById('form-load-phone').value = "";
+        document.getElementById('form-load-amt').value = "";
+    },
+
+    // --- BILLS LOGIC (NEW) ---
+    processBill() {
+        const biller = document.getElementById('form-bill-biller').value;
+        const account = document.getElementById('form-bill-account').value;
+        const amt = parseFloat(document.getElementById('form-bill-amt').value);
+
+        if(!account) return this.toast("Enter Account Number", "error");
+        if(!amt || amt <= 0) return this.toast("Invalid Amount", "error");
+        if(amt > this.state.balance) return this.toast("Insufficient Balance", "error");
+
+        this.state.balance -= amt;
+        this.addHistory(`Bill: ${biller} (${account})`, amt, true);
+        this.update();
+        this.closeModal();
+        this.toast("Bill Payment Successful", "success");
+
+        // Reset Inputs
+        document.getElementById('form-bill-account').value = "";
+        document.getElementById('form-bill-amt').value = "";
+    },
+
+    processSend() {
+        const phone = document.getElementById('form-send-phone').value;
+        const amt = parseFloat(document.getElementById('form-send-amt').value);
+        if(!phone || amt > this.state.balance) return this.toast("Check details", "error");
+        this.state.balance -= amt;
+        this.addHistory(`To ${phone}`, amt, true);
+        this.update();
+        this.closeModal();
+    },
+
+    // --- CORE ---
+    async startQR() {
+        this.openModal('mod-qr');
+        this.scanner = new Html5Qrcode("qr-container");
+        try {
+            await this.scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                this.stopQR();
+                this.handleQRResult(text);
+            });
+        } catch (e) { this.closeModal(); }
+    },
+
+    async stopQR() {
+        if(this.scanner) { await this.scanner.stop(); await this.scanner.clear(); this.scanner = null; }
+        this.closeModal();
+    },
+
+    handleQRResult(text) {
+        let pay = parseFloat(prompt(`Pay ${text}:`));
+        if (pay > 0 && pay <= this.state.balance) {
+            this.state.balance -= pay;
+            this.addHistory(`QR: ${text}`, pay, true);
+            this.update();
+        }
+    },
+
+    login() {
+        const p = document.getElementById('login-phone').value;
+        const n = document.getElementById('login-pin').value;
+        if(this.state.users[p] === n) {
+            this.nav('screen-dash');
+            document.getElementById('main-nav').style.display = 'flex';
+        } else { this.toast("Invalid PIN", "error"); }
+    },
+
+    register() {
+        const p = document.getElementById('reg-phone').value;
+        const n = document.getElementById('reg-pin').value;
+        if(p && n.length === 4) {
+            this.state.users[p] = n;
+            this.toast("Registered!", "success");
+            this.nav('screen-login');
+        }
+    },
+
+    cashIn() {
+        let amt = parseFloat(prompt("Amount:"));
+        if(amt > 0) { this.state.balance += amt; this.addHistory("Cash In", amt, false); this.update(); }
+    },
+
+    update() {
+        document.getElementById('ui-balance').innerText = `₱ ${this.state.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        const container = document.getElementById('ui-history');
+        container.innerHTML = this.state.history.slice().reverse().map(t => `
+            <div class="history-item">
+                <div><b>${t.label}</b><br><small>${t.time}</small></div>
+                <b style="color:${t.neg ? 'var(--danger)' : 'var(--success)'}">${t.neg?'-':'+'} ₱${t.amt.toFixed(2)}</b>
+            </div>
+        `).join('') || '<p style="text-align:center; opacity:0.5;">Empty Activity</p>';
+    },
+
+    addHistory(label, amt, neg) {
+        this.state.history.push({ label, amt, neg, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+    },
+
+    nav(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    },
+
+    tab(id, el) {
+        this.nav(id);
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+    },
+
+    openModal(id) { document.getElementById(id).style.display = 'flex'; },
+    closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); },
+    logout() { location.reload(); }
+};
+
+System.update();
+</script>
+</body>
+</html>
